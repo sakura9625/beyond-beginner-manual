@@ -2,6 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/article.dart';
 
 class FirestoreService {
+  static void enableOfflineCache() {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  }
+
   final _db = FirebaseFirestore.instance;
 
   Stream<List<Article>> getArticles({String? chapter}) {
@@ -58,6 +65,21 @@ class FirestoreService {
         .get();
     if (!doc.exists) return {};
     return Map<String, bool>.from(doc.data() ?? {});
+  }
+
+  // 全記事のクエスト進捗を一括取得
+  Future<Map<String, Map<String, bool>>> getAllQuestProgress(String userId) async {
+    final snap = await _db
+        .collection('user_progress')
+        .doc(userId)
+        .collection('quests')
+        .get();
+
+    final result = <String, Map<String, bool>>{};
+    for (final doc in snap.docs) {
+      result[doc.id] = Map<String, bool>.from(doc.data());
+    }
+    return result;
   }
 
   Future<void> resetArticleProgress(String userId, String articleId) async {

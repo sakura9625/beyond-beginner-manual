@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/services/device_id_service.dart';
 import '../../core/services/firestore_service.dart';
 import '../../models/article.dart';
+import '../../core/services/article_cache_service.dart';
 import '../../widgets/hero_quote_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,19 +31,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final id = await DeviceIdService.getUserId();
-    final articles = await _service.getArticles().first;
-    final readIds = await _service.getReadArticleIds(id);
-    final map = <String, Map<String, bool>>{};
-    for (final article in articles) {
-      final progress = await _service.getQuestProgress(id, article.id);
-      map[article.id] = progress;
+
+    List<Article>? cachedArticles = await ArticleCacheService.loadArticles();
+    List<Article> articles;
+
+    if (cachedArticles != null) {
+      articles = cachedArticles;
+    } else {
+      articles = await _service.getArticles().first;
+      await ArticleCacheService.saveArticles(articles);
     }
+
+    final readIds = await _service.getReadArticleIds(id);
+    final questProgressMap = await _service.getAllQuestProgress(id);
+
     if (mounted) {
       setState(() {
         _userId = id;
         _articles = articles;
         _readIds = readIds;
-        _questProgressMap = map;
+        _questProgressMap = questProgressMap;
         _loading = false;
       });
     }
@@ -186,67 +194,85 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              ...chapterMap.entries.map((entry) {
-                final ch = entry.value;
-                final chTotal = ch['total'] as int;
-                final chCompleted = ch['completed'] as int;
-                final chProgress =
-                    chTotal > 0 ? chCompleted / chTotal : 0.0;
+              // Chapter表示順を固定
+              ...() {
+                const chapterOrder = [
+                  'はじめに', '心構え', '私の体験談', '上達論',
+                  '耳抜き・潜降', '呼吸', '中性浮力', 'エア消費',
+                  '姿勢・フィンキック', '優雅に泳ぐ', '器材',
+                  '中性浮力 Vol.2', 'メンタル', 'エントリー・浮上',
+                  'ボートダイビング', 'ドライスーツ', '写真', '生物',
+                  '安全', 'マナー',
+                ];
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppColors.border, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            ch['name'] as String,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '$chCompleted / $chTotal',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: chProgress,
-                        backgroundColor: AppColors.border,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.sunYellow,
+                final sortedChapters = chapterOrder
+                    .where((ch) => chapterMap.containsKey(ch))
+                    .map((ch) => MapEntry(ch, chapterMap[ch]!))
+                    .toList();
+
+                return sortedChapters.map((entry) {
+                  final ch = entry.value;
+                  final chTotal = ch['total'] as int;
+                  final chCompleted = ch['completed'] as int;
+                  final chProgress = chTotal > 0 ? chCompleted / chTotal : 0.0;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
                         ),
-                        minHeight: 24,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '$chCompleted / $chTotal',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: LinearProgressIndicator(
+                            value: chProgress,
+                            backgroundColor: AppColors.border,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppColors.sunYellow,
+                            ),
+                            minHeight: 24,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList();
+              }(),
             ],
           ),
         ),

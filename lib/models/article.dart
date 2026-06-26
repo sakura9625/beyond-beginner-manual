@@ -66,4 +66,40 @@ class Article {
       'isPro': isPro,
     };
   }
+
+  factory Article.fromJson(Map<String, dynamic> json) {
+    return Article(
+      id: json['id'] ?? '',
+      chapter: json['chapter'] ?? '',
+      chapterName: json['chapterName'] ?? '',
+      no: json['no'] ?? '',
+      title: json['title'] ?? '',
+      myStory: json['myStory'] ?? '',
+      whyItHappened: json['whyItHappened'] ?? '',
+      improvement: json['improvement'] ?? '',
+      todaysQuest: List<String>.from(json['todaysQuest'] ?? []),
+      reviewChecks: List<String>.from(json['reviewChecks'] ?? []),
+      difficulty: json['difficulty'] ?? 1,
+      recommendedDives: json['recommendedDives'] ?? '',
+      isPro: json['isPro'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'chapter': chapter,
+      'chapterName': chapterName,
+      'no': no,
+      'title': title,
+      'myStory': myStory,
+      'whyItHappened': whyItHappened,
+      'improvement': improvement,
+      'todaysQuest': todaysQuest,
+      'reviewChecks': reviewChecks,
+      'difficulty': difficulty,
+      'recommendedDives': recommendedDives,
+      'isPro': isPro,
+    };
+  }
 }
