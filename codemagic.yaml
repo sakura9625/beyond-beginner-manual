@@ -8,6 +8,8 @@ workflows:
       cocoapods: default
       groups:
         - ios_signing
+      vars:
+        BUNDLE_ID: "com.beyondbeginner.manual"
     scripts:
       - name: Set up Flutter
         script: |
@@ -21,6 +23,11 @@ workflows:
           cd ios && pod install
       - name: Set up code signing
         script: |
+          keychain initialize
+          app-store-connect fetch-signing-files $BUNDLE_ID \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
           xcode-project use-profiles
       - name: Build iOS
         script: |
