@@ -45,6 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final readIds = await _service.getReadArticleIds(id);
     final questProgressMap = await _service.getAllQuestProgress(id);
 
+    print('総記事数: ${articles.length}');
+    print('Chapter一覧: ${articles.map((a) => a.chapterName).toSet().toList()}');
+
     if (mounted) {
       setState(() {
         _userId = id;
@@ -79,22 +82,36 @@ class _HomeScreenState extends State<HomeScreen> {
     final completed = _articles.where(_isArticleComplete).length;
     final progress = total > 0 ? completed / total : 0.0;
 
+    // chapterMapの生成（_articlesから動的に作成）
     final chapterMap = <String, Map<String, dynamic>>{};
     for (final article in _articles) {
-      final ch = article.chapter;
+      final ch = article.chapterName;
       if (!chapterMap.containsKey(ch)) {
         chapterMap[ch] = {
-          'name': article.chapterName,
           'total': 0,
           'completed': 0,
         };
       }
       chapterMap[ch]!['total'] = (chapterMap[ch]!['total'] as int) + 1;
       if (_isArticleComplete(article)) {
-        chapterMap[ch]!['completed'] =
-            (chapterMap[ch]!['completed'] as int) + 1;
+        chapterMap[ch]!['completed'] = (chapterMap[ch]!['completed'] as int) + 1;
       }
     }
+
+    // Chapter表示順を固定
+    const chapterOrder = [
+      'はじめに', '心構え', '私の体験談', '上達論',
+      '耳抜き・潜降', '呼吸', '中性浮力', 'エア消費',
+      '姿勢・フィンキック', '優雅に泳ぐ', '器材',
+      '中性浮力 Vol.2', 'メンタル', 'エントリー・浮上',
+      'ボートダイビング', 'ドライスーツ', '写真', '生物',
+      '安全', 'マナー',
+    ];
+
+    final sortedChapters = chapterOrder
+        .where((ch) => chapterMap.containsKey(ch))
+        .map((ch) => MapEntry(ch, chapterMap[ch]!))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -194,85 +211,68 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Chapter表示順を固定
-              ...() {
-                const chapterOrder = [
-                  'はじめに', '心構え', '私の体験談', '上達論',
-                  '耳抜き・潜降', '呼吸', '中性浮力', 'エア消費',
-                  '姿勢・フィンキック', '優雅に泳ぐ', '器材',
-                  '中性浮力 Vol.2', 'メンタル', 'エントリー・浮上',
-                  'ボートダイビング', 'ドライスーツ', '写真', '生物',
-                  '安全', 'マナー',
-                ];
+              ...sortedChapters.map((entry) {
+                final ch = entry.value;
+                final chTotal = ch['total'] as int;
+                final chCompleted = ch['completed'] as int;
+                final chProgress = chTotal > 0 ? chCompleted / chTotal : 0.0;
 
-                final sortedChapters = chapterOrder
-                    .where((ch) => chapterMap.containsKey(ch))
-                    .map((ch) => MapEntry(ch, chapterMap[ch]!))
-                    .toList();
-
-                return sortedChapters.map((entry) {
-                  final ch = entry.value;
-                  final chTotal = ch['total'] as int;
-                  final chCompleted = ch['completed'] as int;
-                  final chProgress = chTotal > 0 ? chCompleted / chTotal : 0.0;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border, width: 1.5),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              entry.key,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            entry.key,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
                             ),
-                            const Spacer(),
-                            Text(
-                              '$chCompleted / $chTotal',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: LinearProgressIndicator(
-                            value: chProgress,
-                            backgroundColor: AppColors.border,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.sunYellow,
-                            ),
-                            minHeight: 24,
-                            borderRadius: BorderRadius.circular(12),
                           ),
+                          const Spacer(),
+                          Text(
+                            '$chCompleted / $chTotal',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: LinearProgressIndicator(
+                          value: chProgress,
+                          backgroundColor: AppColors.border,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.sunYellow,
+                          ),
+                          minHeight: 24,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
-                    ),
-                  );
-                }).toList();
-              }(),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ],
           ),
         ),
