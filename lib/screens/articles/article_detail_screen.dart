@@ -23,6 +23,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   Map<String, bool> _questProgress = {};
   bool _isRead = false;
   Article? _nextArticle;
+  double _dragOffset = 0.0;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -458,30 +460,73 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
             if (_nextArticle != null)
               GestureDetector(
+                onVerticalDragUpdate: (details) {
+                  if (details.delta.dy < 0) {
+                    setState(() {
+                      _isDragging = true;
+                      // rubber band: 引っ張るほど抵抗が増す
+                      _dragOffset += details.delta.dy * 0.4;
+                      if (_dragOffset < -80) _dragOffset = -80;
+                    });
+                  }
+                },
                 onVerticalDragEnd: (details) {
-                  if (details.primaryVelocity != null &&
-                      details.primaryVelocity! < -300) {
-                    Navigator.pushReplacement(
+                  if (_dragOffset < -40 ||
+                      (details.primaryVelocity != null &&
+                          details.primaryVelocity! < -500)) {
+                    // 遷移: 縦方向（下から上へ）
+                    Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => ArticleDetailScreen(
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => ArticleDetailScreen(
                           article: _nextArticle!,
                           userId: widget.userId,
                         ),
+                        transitionsBuilder: (_, animation, __, child) {
+                          return SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            )),
+                            child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 350),
                       ),
                     );
                   }
+                  // 元の位置に戻す
+                  setState(() {
+                    _dragOffset = 0.0;
+                    _isDragging = false;
+                  });
                 },
-                child: Container(
+                onVerticalDragCancel: () {
+                  setState(() {
+                    _dragOffset = 0.0;
+                    _isDragging = false;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: _isDragging
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
+                  curve: Curves.elasticOut,
+                  transform: Matrix4.translationValues(0, _dragOffset, 0),
                   width: double.infinity,
                   margin: const EdgeInsets.only(top: 8, bottom: 24),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.06),
+                    color: AppColors.primary
+                        .withOpacity(0.06 + (_dragOffset.abs() / 80) * 0.06),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primary.withOpacity(0.15),
+                      color: AppColors.primary
+                          .withOpacity(0.15 + (_dragOffset.abs() / 80) * 0.15),
                       width: 1,
                     ),
                   ),
@@ -508,10 +553,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       ),
                       const SizedBox(height: 10),
                       Center(
-                        child: Icon(
-                          Icons.keyboard_arrow_up,
-                          color: AppColors.primary.withOpacity(0.4),
-                          size: 28,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 100),
+                          transform: Matrix4.translationValues(
+                            0,
+                            _dragOffset * 0.3,
+                            0,
+                          ),
+                          child: Icon(
+                            Icons.keyboard_arrow_up,
+                            color: AppColors.primary.withOpacity(
+                              0.4 + (_dragOffset.abs() / 80) * 0.4,
+                            ),
+                            size: 28 + (_dragOffset.abs() / 80) * 8,
+                          ),
                         ),
                       ),
                     ],
