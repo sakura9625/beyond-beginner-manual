@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/firestore_service.dart';
+import '../../core/services/article_cache_service.dart';
 import '../../models/article.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
@@ -21,11 +22,27 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   final _service = FirestoreService();
   Map<String, bool> _questProgress = {};
   bool _isRead = false;
+  Article? _nextArticle;
 
   @override
   void initState() {
     super.initState();
     _loadProgress();
+    _loadNextArticle();
+  }
+
+  Future<void> _loadNextArticle() async {
+    final allArticles = await ArticleCacheService.loadArticles();
+    if (allArticles == null) return;
+    final currentIndex =
+        allArticles.indexWhere((a) => a.id == widget.article.id);
+    if (currentIndex != -1 && currentIndex < allArticles.length - 1) {
+      if (mounted) {
+        setState(() {
+          _nextArticle = allArticles[currentIndex + 1];
+        });
+      }
+    }
   }
 
   Future<void> _loadProgress() async {
@@ -436,6 +453,69 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       );
                     }),
                   ],
+                ),
+              ),
+
+            if (_nextArticle != null)
+              GestureDetector(
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null &&
+                      details.primaryVelocity! < -300) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ArticleDetailScreen(
+                          article: _nextArticle!,
+                          userId: widget.userId,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 8, bottom: 24),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.15),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '次のトピック',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary.withOpacity(0.7),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _nextArticle!.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Icon(
+                          Icons.keyboard_arrow_up,
+                          color: AppColors.primary.withOpacity(0.4),
+                          size: 28,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 

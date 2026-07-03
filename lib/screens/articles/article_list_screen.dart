@@ -41,7 +41,6 @@ class _ArticleListScreenState extends State<ArticleListScreen> {
     {'key': '姿勢・フィンキック', 'label': '姿勢・フィンキック'},
     {'key': '優雅に泳ぐ', 'label': '優雅に泳ぐ'},
     {'key': '器材', 'label': '器材'},
-    {'key': '中性浮力 Vol.2', 'label': '中性浮力 Vol.2'},
     {'key': 'メンタル', 'label': 'メンタル'},
     {'key': 'エントリー・浮上', 'label': 'エントリー・浮上'},
     {'key': 'ボートダイビング', 'label': 'ボートダイビング'},
